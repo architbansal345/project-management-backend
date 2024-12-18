@@ -17,7 +17,8 @@ func SetupRoutes(router *gin.Engine) {
 	private.Use(middleware.AuthMiddleware())
 	{
 		private.POST("/apply-leave", controllers.ApplyLeave)
-		private.POST("/leave-balance")
+		private.GET("/leave-balance", controllers.RemainingLeave)
+		private.GET("/view-leaveApplications", controllers.ViewLeaveApplication)
 	}
 
 }

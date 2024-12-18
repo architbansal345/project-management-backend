@@ -10,5 +10,6 @@ type LeaveRecord struct {
 	EndDate     time.Time `gorm:"not null"  binding:"required"`
 	Status      string    `gorm:"default:Pending"`
 	Reason      string    `gorm:"type:text"  binding:"required"`
+	FilePath    string    `gorm:"type:text"`
 	CreatedAt   time.Time `gorm:"autoCreatedTime"`
 }
