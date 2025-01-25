@@ -18,10 +18,10 @@ func ApplyLeave(c *gin.Context) {
 		return
 	}
 	var request struct {
-		LeaveTypeId uint   `form:"leaveid"`
-		StartDate   string `form:"startDate"`
-		EndDate     string `form:"endDate"`
-		Reason      string `form:"reason"`
+		LeaveType string `form:"leaveType" binding:"required"`
+		StartDate string `form:"startDate" binding:"required"`
+		EndDate   string `form:"endDate" binding:"required"`
+		Reason    string `form:"reason" binding:"required"`
 	}
 	if err := c.ShouldBind(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -49,18 +49,21 @@ func ApplyLeave(c *gin.Context) {
 	}
 
 	leaveRecord := models.LeaveRecord{
-		UserId:      userID.(uint),
-		LeaveTypeId: request.LeaveTypeId,
-		StartDate:   startDate,
-		EndDate:     endDate,
-		Reason:      request.Reason,
-		FilePath:    fileName,
+		UserId:    userID.(uint),
+		LeaveType: request.LeaveType,
+		StartDate: startDate,
+		EndDate:   endDate,
+		Reason:    request.Reason,
+		FilePath:  fileName,
 	}
 	if result := config.DB.Create(&leaveRecord); result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create leave record"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Leave application submitted"})
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Leave application submitted",
+	})
 }
 
 func RemainingLeave(c *gin.Context) {
@@ -76,9 +79,12 @@ func RemainingLeave(c *gin.Context) {
 	}
 	usedLeaves := make(map[string]int)
 	for _, record := range leaveRecords {
-		duration := int(record.EndDate.Sub(record.StartDate).Hours() / 24)
+		duration := int(record.EndDate.Sub(record.StartDate).Hours()/24) + 1
 		var leaveType models.LeaveType
-		config.DB.First(&leaveType, record.LeaveTypeId)
+		if err := config.DB.Where("type = ?", record.LeaveType).First(&leaveType).Error; err != nil {
+			fmt.Println("Error finding LeaveType:", err)
+			continue
+		}
 		usedLeaves[leaveType.Type] += duration
 	}
 	var leaveType []models.LeaveType
@@ -87,7 +93,10 @@ func RemainingLeave(c *gin.Context) {
 	for _, leaveType := range leaveType {
 		balance[leaveType.Type] = leaveType.MaxDays - usedLeaves[leaveType.Type]
 	}
-	c.JSON(http.StatusOK, gin.H{"leave_balance": balance})
+	c.JSON(http.StatusOK, gin.H{
+		"status":        "success",
+		"leave_balance": balance,
+	})
 }
 
 func ViewLeaveApplication(c *gin.Context) {
@@ -103,23 +112,26 @@ func ViewLeaveApplication(c *gin.Context) {
 	}
 
 	type LeaveResponse struct {
-		ID          uint      `json:"id"`
-		LeaveTypeID uint      `json:"leave_type_id"`
-		StartDate   time.Time `json:"start_time"`
-		EndDate     time.Time `json:"end_date"`
-		Status      string    `json:"status"`
-		Reason      string    `json:"reason"`
+		ID        uint      `json:"id"`
+		LeaveType string    `json:"leave_type"`
+		StartDate time.Time `json:"start_date"`
+		EndDate   time.Time `json:"end_date"`
+		Status    string    `json:"status"`
+		Reason    string    `json:"reason"`
 	}
 	var leaveApplication []LeaveResponse
 	for _, record := range leaveRecord {
 		leaveApplication = append(leaveApplication, LeaveResponse{
-			ID:          record.ID,
-			LeaveTypeID: record.LeaveTypeId,
-			StartDate:   record.StartDate,
-			EndDate:     record.EndDate,
-			Reason:      record.Reason,
-			Status:      record.Status,
+			ID:        record.ID,
+			LeaveType: record.LeaveType,
+			StartDate: record.StartDate,
+			EndDate:   record.EndDate,
+			Reason:    record.Reason,
+			Status:    record.Status,
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"leave_application": leaveApplication})
+	c.JSON(http.StatusOK, gin.H{
+		"status":            "success",
+		"leave_application": leaveApplication,
+	})
 }
