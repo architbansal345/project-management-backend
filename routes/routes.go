@@ -12,6 +12,7 @@ func SetupRoutes(router *gin.Engine) {
 	{
 		public.POST("/signup", controllers.SignUp)
 		public.POST("/login", controllers.Login)
+		public.GET("/downloadPDF",controllers.HTMLtoPDF)
 	}
 	private := router.Group("/api/v1")
 	private.Use(middleware.AuthMiddleware())
@@ -19,6 +20,7 @@ func SetupRoutes(router *gin.Engine) {
 		private.POST("/apply-leave", controllers.ApplyLeave)
 		private.GET("/leave-balance", controllers.RemainingLeave)
 		private.GET("/view-leaveApplications", controllers.ViewLeaveApplication)
+		private.POST("/onboarding/start",controllers.OnBoarding);
 	}
 
 }

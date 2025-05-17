@@ -1,9 +1,13 @@
 package controllers
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"project-management-backend/config"
 	"project-management-backend/models"
+	"project-management-backend/utils"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -23,6 +27,7 @@ func SignUp(c *gin.Context) {
 		return
 	}
 	user.Password = string(hashedPassword)
+	user.ConfirmPassword = string(hashedPassword)
 	if err := config.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to Create user"})
 		return
@@ -47,14 +52,32 @@ type Claims struct {
 }
 
 func Login(c *gin.Context) {
+	var requestBody struct {
+		EncryptedData string `json:"encryptedData" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+	secretKey := "your-secret-key" // Must match the frontend encryption key
+	decryptedData, err := utils.DecryptData(requestBody.EncryptedData, secretKey)
+	if err != nil {
+		log.Println("Error decrypting data:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decrypt data"})
+		return
+	}
+
+	fmt.Println("Decrypted Data: ", decryptedData)
 	var credentials struct {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&credentials); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := json.Unmarshal([]byte(decryptedData), &credentials); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid decrypted JSON"})
 		return
 	}
+
 	var user models.User
 
 	if err := config.DB.Where("email = ?", credentials.Email).First(&user).Error; err != nil {
